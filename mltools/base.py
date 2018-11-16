@@ -86,7 +86,7 @@ class classifier:
             float: Negative log likelihood of the predictions
         """
         M, N = X.shape
-        P = np.asarray(self.predictSoft(X))
+        P = self.predictSoft(X)
         P /= np.sum(P, axis=1, keepdims=True)  # normalize to sum to one
         Y = toIndex(Y, self.classes)
         return - np.mean(np.log(P[np.arange(M), Y].clip(np.finfo(float).eps)))  # evaluate

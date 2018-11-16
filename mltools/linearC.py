@@ -5,11 +5,13 @@ from .utils import toIndex
 from numpy import asarray as arr
 from numpy import atleast_2d as twod
 import scipy.special
-import line_profiler
-import atexit
 
-profile = line_profiler.LineProfiler()
-atexit.register(profile.print_stats)
+
+# import line_profiler
+# import atexit
+#
+# profile = line_profiler.LineProfiler()
+# atexit.register(profile.print_stats)
 
 
 class linearClassify(classifier):
@@ -60,12 +62,11 @@ class linearClassify(classifier):
         X : M x N numpy array
             M = number of testing instances; N = number of features.
         """
-        theta, X = twod(self.theta), arr(X)  # convert to numpy if needed
-        resp = theta[:, 0].T + X.dot(theta[:, 1:].T)  # linear response (MxC)
+        resp = X.dot(self.theta[1:].T) + self.theta[0]  # linear response (MxC)
         prob = np.exp(resp)
-        if resp.shape[1] == 1:  # binary classification (C=1)
+        if resp.ndim == 1 or resp.shape[1] == 1:  # binary classification (C=1)
             prob /= prob + 1.0  # logistic transform (binary classification; C=1)
-            prob = np.hstack((1 - prob, prob))  # make a column for each class
+            prob = np.stack((1 - prob, prob), axis=1)  # make a column for each class
         else:
             prob /= np.sum(prob, axis=1)  # normalize each row (for multi-class)
 
@@ -75,39 +76,35 @@ class linearClassify(classifier):
     Define "predict" here if desired (or just use predictSoft + argmax by default)
     """
 
-    @profile
+    # @profile
     def train(self, X, Y, reg=0.0, initStep=1.0, stopTol=1e-4, stopIter=5000):
         """
         Train the linear classifier.
         """
-        self.theta, X, Y = twod(self.theta), arr(X), arr(Y)  # convert to numpy arrays
-        M, N = X.shape
-        X1 = np.hstack((np.ones((M, 1)), X))  # make data array with constant feature
-        if Y.shape[0] != M:
+        m, n = X.shape
+        if Y.shape[0] != m:
             raise ValueError("Y must have the same number of data (rows) as X")
         self.classes = np.unique(Y)
         if len(self.classes) != 2:
             raise ValueError("Y should have exactly two classes (binary problem expected)")
-        if self.theta.shape[1] != N + 1:  # if self.theta is empty, initialize it!
-            self.theta = np.random.randn(1, N + 1)
+        self.theta = np.random.randn(n + 1)
         Y01 = toIndex(Y, self.classes)  # convert Y to "index" (binary: 0 vs 1)
         it = 0
-        Jsur = []
-        J01 = []
+        last_jsur = 1e6
         while True:
             step = (2.0 * initStep) / (2.0 + it)  # common 1/iter step size change
-            for i in range(M):  # for each data point
-                respi = self.theta[:, 0] + twod(X[i, :]).dot(self.theta[:, 1:].T)
-                sigx = scipy.special.expit(respi)
-                gradi = (sigx - Y01[i]) * twod(X1[i, :]) + reg * self.theta
-                self.theta = self.theta - step * gradi
+            for i in range(m):  # for each data point
+                sigx = scipy.special.expit(X[i, :].dot(self.theta[1:].T) + self.theta[0])
+                raw_gradient = (sigx - Y01[i]) * X[i, :]
+                gradi = raw_gradient + reg * self.theta[1:]
+                self.theta[1:] -= step * gradi
+                self.theta[0] -= step * reg * self.theta[0]
 
-            # each pass, compute surrogate loss & error rates:
-            Jsur.append(self.nll(X, Y) + reg * np.sum(self.theta ** 2))
-            J01.append(self.err(X, Y))
+            jsur = self.nll(X, Y) + reg * np.sum(self.theta ** 2)
             it += 1
-            if it > stopIter or (not Jsur and abs(Jsur[-1] - Jsur[-2]) < stopTol):
-                return Jsur, J01
+            if it > stopIter or abs(jsur - last_jsur) < stopTol:
+                return
+            last_jsur = jsur
 
     def lossLogisticNLL(self, X, Y, reg=0.0):
         M, N = X.shape

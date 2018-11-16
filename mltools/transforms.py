@@ -1,6 +1,8 @@
 import numpy as np
 from numpy import asarray as arr
 from numpy import atleast_2d as twod
+
+
 # import line_profiler
 # import atexit
 #
@@ -9,14 +11,10 @@ from numpy import atleast_2d as twod
 #
 #
 # @profile
-def poly_feature_deg2(x, bias=True):
+def poly_feature_deg2(x):
     if x.ndim > 1:
         raise ValueError
-    if bias:
-        terms = [1] + list(x)
-    else:
-        terms = list(x)
-    terms += [xi ** 2 for xi in x]
+    terms = list(x) + [xi ** 2 for xi in x]
     for i in range(len(x)):
         terms += [x[i] * xj for xj in x[i + 1:]]
     return np.array(terms)
@@ -257,7 +255,7 @@ def fpoly(X, degree, bias=True):
     Xext : MxN' numpy array with each data point's higher order features
     """
     if degree == 2:
-        return np.apply_along_axis(lambda x: poly_feature_deg2(x, bias=True), axis=1, arr=X)
+        return np.apply_along_axis(poly_feature_deg2, axis=1, arr=X)
     else:
         n, m = twod(X).shape
         if (degree + 1) ** (m) > 1e7:
