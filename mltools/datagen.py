@@ -12,7 +12,6 @@ from scipy.linalg import sqrtm
 ## Methods for creating / sampling synthetic datasets ##########################
 ################################################################################
 
-
 def data_gauss(N0, N1=None, mu0=arr([0, 0]), mu1=arr([1, 1]), sig0=np.eye(2), sig1=np.eye(2)):
     """Sample data from a two-component Gaussian mixture model.
 
@@ -56,8 +55,8 @@ def data_gauss(N0, N1=None, mu0=arr([0, 0]), mu1=arr([1, 1]), sig0=np.eye(2), si
 def data_GMM(N, C, D=2, get_Z=False):
     """Sample data from a Gaussian mixture model.
 
-	Builds a random GMM with C components and draws M data x^{(i)} from a mixture
-	of Gaussians in D dimensions
+  Builds a random GMM with C components and draws M data x^{(i)} from a mixture
+    of Gaussians in D dimensions
 
     Args:
         N (int): Number of data to be drawn from a mixture of Gaussians.
@@ -151,9 +150,9 @@ def data_mouse():
     Opens a matplotlib plot window, and allows the user to specify points with the mouse.
     Each button is its own class (1,2,3); close the window when done creating data.
 
-    Returns:
-        X (arr): Mx2 array of data locations
-        Y (arr): Mx1 array of labels (buttons)
+  Returns:
+      X (arr): Mx2 array of data locations
+      Y (arr): Mx1 array of labels (buttons)
     """
     import matplotlib.pyplot as plt
     fig = plt.figure()

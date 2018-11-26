@@ -1,24 +1,14 @@
 import numpy as np
+
 from numpy import asarray as arr
+from numpy import asmatrix as mat
 from numpy import atleast_2d as twod
 
 
-# import line_profiler
-# import atexit
-#
-# profile = line_profiler.LineProfiler()
-# atexit.register(profile.print_stats)
-#
-#
-# @profile
-def poly_feature_deg2(x):
-    if x.ndim > 1:
-        raise ValueError
-    terms = list(x) + [xi ** 2 for xi in x]
-    for i in range(len(x)):
-        terms += [x[i] * xj for xj in x[i + 1:]]
-    return np.array(terms)
 
+################################################################################
+## Basic transformation functions: scaling, whitening  #########################
+################################################################################
 
 def rescale(X, args=None):
     """
@@ -39,7 +29,7 @@ def rescale(X, args=None):
       X are the shifted & rescaled data points
       args = (mu,scale) are the arguments to reproduce the same transform
     """
-    mu, scale = args if args is not None else (None, None)
+    mu,scale = args if args is not None else (None,None)
     if mu is None:
         mu = np.mean(X, axis=0)
     if scale is None:
@@ -49,7 +39,7 @@ def rescale(X, args=None):
     X -= mu
     X *= scale
 
-    return X, (mu, scale)
+    return X, (mu,scale)
 
 
 def whiten(X, args=None):
@@ -71,20 +61,21 @@ def whiten(X, args=None):
       X are the shifted, rotated, and scaled data points
       args = (mu,sig) are the arguments to reproduce the same transform
     """
-    mu, sig = args if args is not None else (None, None)
+    mu,sig = args if args is not None else (None,None)
     if mu is None:
         mu = np.mean(X, axis=0)
 
     if sig is None:
         C = np.cov(X, rowvar=0)
-        U, S, V = np.linalg.svd(C)
+        U,S,V = np.linalg.svd(C)
         sig = U * np.diag(1.0 / np.sqrt(np.diag(S)))
 
     X = X.copy()
     X -= mu
     X = X.dot(sig)
 
-    return X, (mu, sig)
+    return X, (mu,sig)
+
 
 
 ################################################################################
@@ -116,16 +107,16 @@ def fhash(X, K, hash=None):
     """
     to_return = ()
 
-    n, m = twod(X).shape
+    n,m = twod(X).shape
 
-    if hash is None:  # TODO : not what we want ?!
+    if hash is None:        # TODO : not what we want ?!
         hash = lambda i: np.floor(np.random.rand(m) * K)[i]
         to_return = (hash,)
 
     # do the hashing
-    Z = np.zeros((n, K))
+    Z = np.zeros((n,K))
     for i in range(m):
-        Z[:, hash(i)] = Z[:, hash(i)] + X[:, i]
+        Z[:,hash(i)] = Z[:,hash(i)] + X[:,i]
 
     return Z if len(to_return) == 0 else (Z,) + to_return
 
@@ -156,35 +147,35 @@ def fkitchensink(X, K, typ, W=None):
     """
     to_return = ()
 
-    N, M = twod(X).shape
+    N,M = twod(X).shape
     typ = typ.lower()
 
-    if type(W) is type(None):  # numpy complains about truth value of arrays
+    if type(W) is type(None):                           # numpy complains about truth value of arrays
         if typ == 'stump':
-            W = np.zeros((2, K))
+            W = np.zeros((2,K))
             s = np.sqrt(np.var(X, axis=0))
             # random feature index 1..M
-            W[0, :] = np.floor(np.random.rand(K) * M)
+            W[0,:] = np.floor(np.random.rand(K) * M)
             W = W.astype(int)
-            W[0, :] = W[0, :].astype(int)
-            W[1, :] = np.random.randn(K) * s[W[0, :]]  # random threshold (w/ same variance as that feature)
+            W[0,:] = W[0,:].astype(int)
+            W[1,:] = np.random.randn(K) * s[W[0,:]]     # random threshold (w/ same variance as that feature)
         elif typ in ['sigmoid', 'sinusoid', 'linear']:
             # random direction for sigmodal ridge, random freq for sinusoids, random linear projections
-            W = np.random.randn(M, K)
+            W = np.random.randn(M,K)
 
         to_return = (W,)
 
-    Z = np.zeros((N, K))
+    Z = np.zeros((N,K))
 
-    if typ == 'stump':  # decision stump w/ random threshold
+    if typ == 'stump':                                  # decision stump w/ random threshold
         for i in range(K):
-            Z[:, i] = X[:, W[0, i]] >= W[1, i]
-    elif typ == 'sigmoid':  # sigmoidal ridge w/ random direction
+            Z[:,i] = X[:,W[0,i]] >= W[1,i]
+    elif typ == 'sigmoid':                              # sigmoidal ridge w/ random direction
         Z = twod(X).dot(W)
         Z = 1 / (1 + np.exp(Z))
-    elif typ == 'sinusoid':  # sinusoid w/ random frequency
+    elif typ == 'sinusoid':                             # sinusoid w/ random frequency
         Z = np.sin(twod(X).dot(W))
-    elif typ == 'linear':  # straight linear projection
+    elif typ == 'linear':                               # straight linear projection
         Z = twod(X).dot(W)
 
     return Z if len(to_return) == 0 else (Z,) + to_return
@@ -217,27 +208,27 @@ def flda(X, Y, K, T=None):
     if type(T) is not type(None):
         return np.divide(X, T)
 
-    n, m = twod(X).shape
+    n,m = twod(X).shape
 
     c = np.unique(Y)
     nc = np.zeros(len(c))
-    mu = np.zeros((len(c), n))
-    sig = np.zeros((len(c), n, n))
+    mu = np.zeros((len(c),n))
+    sig = np.zeros((len(c),n,n))
 
     for i in range(len(c)):
         idx = np.where(Y == c[i])[0]
         nc[i] = len(idx)
-        mu[i, :] = np.mean(X[:, idx], axis=0)
-        sig[i, :, :] = np.cov(X[:, idx])
+        mu[i,:] = np.mean(X[:,idx], axis=0)
+        sig[i,:,:] = np.cov(X[:,idx])
 
-    S = (nc / n).dot(np.reshape(sig, (len(c), n * n)))
-    S = np.reshape(S, (n, n))
+    S = (nc / n).dot(np.reshape(sig, (len(c),n * n)))
+    S = np.reshape(S, (n,n))
 
-    U, S, V = np.linalg.svd(X, K)  # compute SVD (Ihler uses svds here)
-    Xlda = U.dot(np.sqrt(S))  # new data coefficients
-    T = np.sqrt(S[0:K, 0:K]).dot(twod(V).T)  # new bases for data
+    U,S,V = np.linalg.svd(X, K)                 # compute SVD (Ihler uses svds here)
+    Xlda = U.dot(np.sqrt(S))                    # new data coefficients
+    T = np.sqrt(S[0:K,0:K]).dot(twod(V).T)      # new bases for data
 
-    return Xlda, T
+    return Xlda,T
 
 
 def fpoly(X, degree, bias=True):
@@ -254,32 +245,30 @@ def fpoly(X, degree, bias=True):
     -------
     Xext : MxN' numpy array with each data point's higher order features
     """
-    if degree == 2:
-        return np.apply_along_axis(poly_feature_deg2, axis=1, arr=X)
+    n,m = twod(X).shape
+
+    if (degree + 1)**(m) > 1e7:
+        err_string = 'fpoly: {}**{} = too many potential output features'.format( degree + 1, m )
+        raise ValueError(err_string)
+
+    if m == 1:                                              # faster shortcut for scalar data
+        p = arr(range(0, degree + 1))
+        Xext = np.power(np.tile(X, (1, len(p))), np.tile(p, (n,1)))
     else:
-        n, m = twod(X).shape
-        if (degree + 1) ** (m) > 1e7:
-            err_string = 'fpoly: {}**{} = too many potential output features'.format(degree + 1, m)
-            raise ValueError(err_string)
+        K=0
+        for i in range( (degree+1)**(m) ):
+            powers = np.unravel_index( i, (degree+1,)*m )
+            if sum(powers) > degree: continue
+            K += 1
+        Xext = np.zeros((n,K))
+        k=0
+        for i in range( (degree+1)**(m) ):
+            powers = np.unravel_index( i, (degree+1,)*m )
+            if sum(powers) > degree: continue
+            Xext[:,k] = np.prod( X ** list(powers) , axis=1)
+            k += 1
 
-        if m == 1:  # faster shortcut for scalar data
-            p = arr(range(0, degree + 1))
-            Xext = np.power(np.tile(X, (1, len(p))), np.tile(p, (n, 1)))
-        else:
-            K = 0
-            for i in range((degree + 1) ** m):
-                powers = np.unravel_index(i, (degree + 1,) * m)
-                if sum(powers) > degree: continue
-                K += 1
-            Xext = np.zeros((n, K))
-            k = 0
-            for i in range((degree + 1) ** m):
-                powers = np.unravel_index(i, (degree + 1,) * m)
-                if sum(powers) > degree: continue
-                Xext[:, k] = np.prod(X ** list(powers), axis=1)
-                k += 1
-
-        return Xext if bias else Xext[:, 1:]
+    return Xext if bias else Xext[:,1:]
 
 
 def fpoly_mono(X, degree, bias=True):
@@ -296,23 +285,22 @@ def fpoly_mono(X, degree, bias=True):
     -------
     Xext : MxN' numpy array with each data point's higher order features
     """
-    m, n = twod(X).shape
+    m,n = twod(X).shape
 
     if bias:
-        Xext = np.zeros((m, n * degree + 1))
-        Xext[:, 0] = 1
+        Xext = np.zeros((m,n * degree + 1))
+        Xext[:,0] = 1
         k = 1
     else:
-        Xext = np.zeros((m, n * degree))
+        Xext = np.zeros((m,n * degree))
         k = 0
 
     for p in range(degree):
         for j in range(n):
-            Xext[:, k] = np.power(X[:, j], p + 1)
+            Xext[:,k] = np.power(X[:,j], p + 1)
             k += 1
 
     return Xext
-
 
 """
 Unused / not developed function...
@@ -384,7 +372,6 @@ def fpoly_pair(X, degree, use_constant=True):
     return Xext
 """
 
-
 def fproject(X, K, proj=None):
     """
     Random projection of features from data. Selects a fixed or random linear
@@ -408,7 +395,7 @@ def fproject(X, K, proj=None):
         N x K numpy array that is the project matrix. Only returned if proj
         argument isn't provided.
     """
-    n, m = twod(X).shape
+    n,m = twod(X).shape
 
     to_return = ()
     if type(proj) is type(None):
@@ -442,7 +429,7 @@ def fsubset(X, K, feat=None):
         1 x N array of indices of selected features. Only returned if feat
         argument isn't provided.
     """
-    n, m = twod(X).shape
+    n,m = twod(X).shape
 
     to_return = ()
     if type(feat) is type(None):
@@ -450,7 +437,7 @@ def fsubset(X, K, feat=None):
         feat = feat[0:K]
         to_return = (feat,)
 
-    X_sub = X[:, feat]
+    X_sub = X[:,feat]
     return X_sub if len(to_return) == 0 else (X_sub,) + to_return
 
 
@@ -476,19 +463,20 @@ def fsvd(X, K, T=None):
     T : numpy array (optional)
         Transform matrix
     """
-    n, m = twod(X).shape
+    n,m = twod(X).shape
 
     if type(T) is type(None):
-        U, S, V = np.linalg.svd(X, full_matrices=False)  # compute SVD (Ihler uses svds here)
-        U = U[:, :K]
+        U,S,V = np.linalg.svd(X, full_matrices=False)           # compute SVD (Ihler uses svds here)
+        U = U[:,:K]
         S = np.diag(S[:K])
-        V = V.T[:, :K]
-        Xsvd = U.dot(np.sqrt(S))  # new data coefficients
-        T = np.sqrt(S[0:K, 0:K]).dot(twod(V).T)  # new bases for data
-        return (Xsvd, T)
+        V = V.T[:,:K]
+        Xsvd = U.dot(np.sqrt(S))                                # new data coefficients
+        T = np.sqrt(S[0:K,0:K]).dot(twod(V).T)                  # new bases for data
+        return (Xsvd,T)
 
-    Xsvd = np.divide(X, T)  # or, use given set of bases
-    return Xsvd, T
+    Xsvd = np.divide(X, T)                                      # or, use given set of bases
+    return Xsvd,T
+
 
 
 def imputeMissing(X, method, parameters=None):
@@ -508,54 +496,55 @@ def imputeMissing(X, method, parameters=None):
     TODO: finish
     """
     X = X.copy()
-    m, n = X.shape
+    m,n = X.shape
     method = method.lower()
 
     def nanEval(X, lam):
-        e = np.zeros((X.shape[1],))
+        e = np.zeros( (X.shape[1],) )
         for i in range(X.shape[1]):
-            e[i] = lam(X[~np.isnan(X[:, i]), i])
+            e[i] = lam(X[ ~np.isnan(X[:,i]),i ])
         return e
 
     # First, create imputation parameters if not provided:
     if parameters is None:
         if method == 'mean':
-            # parameters = np.nanmean(X, axis=0)
+            #parameters = np.nanmean(X, axis=0)
             parameters = nanEval(X, lambda X: np.mean(X))
         if method == 'median':
-            # fillValue = np.nanmedian(X, axis=0)
+            #fillValue = np.nanmedian(X, axis=0)
             parameters = nanEval(X, lambda X: np.median(X))
         if method == 'gaussian':
             mu = nanEval(X, lambda X: np.mean(X))
             for i in range(n):
-                mi = float(np.sum(~np.isnan(X[:, i])))
-                mu[i] *= mi / (mi + n)  # shrink mean toward zero by m counts
-            cov = np.zeros((n, n))
+                mi = float( np.sum(~np.isnan(X[:,i])) )
+                mu[i] *= mi/(mi+n)  # shrink mean toward zero by m counts
+            cov = np.zeros((n,n))
             for i in range(n):
-                for j in range(i, n):
-                    nans = np.isnan(X[:, i]) | np.isnan(X[:, j])
-                    mij = float(np.sum(~nans))
-                    cov[i, j] = np.mean((X[~nans, i] - mu[i]) * (X[~nans, j] - mu[j]))
-                    cov[i, j] *= mij / (mij + n)  # shrink towards
-                    if i == j: cov[i, j] += n / (mij + n)  # identity matrix
-                    cov[j, i] = cov[i, j]
-            parameters = mu, cov
+                for j in range(i,n):
+                    nans = np.isnan(X[:,i]) | np.isnan(X[:,j])
+                    mij  = float( np.sum(~nans) )
+                    cov[i,j] = np.mean( (X[~nans,i]-mu[i])*(X[~nans,j]-mu[j]) )
+                    cov[i,j] *= mij/(mij+n)         # shrink towards
+                    if i==j: cov[i,j] += n/(mij+n)  #  identity matrix
+                    cov[j,i] = cov[i,j]
+            parameters = mu,cov
 
     # Now, apply imputation paramters to fill in the missing values
     if method == 'constant':
-        X[np.isnan(X)] = parameters
+        X[ np.isnan(X) ] = parameters
     if method == 'mean' or method == 'median':
         for i in range(n):
-            X[np.isnan(X[:, i]), i] = parameters[i]
+            X[ np.isnan(X[:,i]), i] = parameters[i]
     if method == 'gaussian':
-        mu, Sig = parameters
+        mu,Sig = parameters
         for j in range(m):
-            nans = np.argwhere(np.isnan(X[j, :])).flatten()
-            oks = np.argwhere(~np.isnan(X[j, :])).flatten()
-            X[j, nans] = mu[nans] - Sig[np.ix_(nans, oks)].dot(
-                np.linalg.inv(Sig[np.ix_(oks, oks)]).dot((X[j, oks] - mu[oks]).T)).T
+            nans = np.argwhere(np.isnan(X[j,:])).flatten()
+            oks  = np.argwhere(~np.isnan(X[j,:])).flatten()
+            X[j,nans] = mu[nans] - Sig[np.ix_(nans,oks)].dot( np.linalg.inv(Sig[np.ix_(oks,oks)]).dot( (X[j,oks]-mu[oks]).T ) ).T
 
     return X
+
+
 
 ################################################################################
 ################################################################################

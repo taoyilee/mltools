@@ -100,7 +100,7 @@ class gaussClassify(classifier):
         if equal:                                               # force covariances to be equal (take weighted average)
             Cov = sum( [self.probs[i]*self.covars[i] for i in range(len(self.probs))] )
             for i,c in enumerate(self.classes):
-                self.covars[i] = Cov
+              self.covars[i] = Cov
 
 
     def predictSoft(self, X):
@@ -137,12 +137,12 @@ class gaussClassify(classifier):
         R = X - np.tile(mean, (m, 1))                          # compute probability of Gaussian at each point
         # need inverse covariance and normalizing constant for Gaussian
         if len(covar.shape) > 1:         # use matrix inverse,
-            constant = 1 / (2 * math.pi)**(d / 2) / np.linalg.det(covar)**(0.5)
-            inverse = np.linalg.inv(covar)
-            p = np.exp(-0.5 * np.sum(np.dot(R, inverse) * R, axis=1)) * constant
+          constant = 1 / (2 * math.pi)**(d / 2) / np.linalg.det(covar)**(0.5)
+          inverse = np.linalg.inv(covar)
+          p = np.exp(-0.5 * np.sum(np.dot(R, inverse) * R, axis=1)) * constant
         else:                            # or simple inverse for diagonal matrices
-            constant = 1 / (2 * math.pi)**(d / 2) / np.prod(covar)**(0.5)
-            inverse = 1.0 / covar[np.newaxis,:]
-            p = np.exp(-0.5 * np.sum((R*inverse) * R, axis=1)) * constant
+          constant = 1 / (2 * math.pi)**(d / 2) / np.prod(covar)**(0.5)
+          inverse = 1.0 / covar[np.newaxis,:]
+          p = np.exp(-0.5 * np.sum((R*inverse) * R, axis=1)) * constant
         # (vectorized)
         return p
